@@ -10,6 +10,7 @@ our $VERSION = '0.01';
 
 my @yieldstack;
 my @params;
+my @code_params;
 my @returns;
 
 sub new {
@@ -17,15 +18,16 @@ sub new {
     my $code  = shift;
 
     my $self = bless {
+        resumed => 0,
         coro  => undef,
         alive => 1,
     }, $class;
 
     $self->{coro} = Coro->new(sub {
-        $code->(@params);
+        my @results = $code->(@code_params);
 
         $self->{alive} = undef;
-        Fiber->yield;
+        Fiber->yield(@results);
     });
 
     return $self;
@@ -45,7 +47,14 @@ sub resume {
     my $self = shift;
     croak "dead fiber called" unless $self->{alive};
 
-    @params = @_;
+    if ($self->{resumed}) {
+        @params = @_;
+        @code_params = ();
+    } else {
+        @code_params = @_;
+        @params = ();
+        $self->{resumed} = 1;
+    }
 
     push @yieldstack, $Coro::current;
     $self->{coro}->schedule_to;

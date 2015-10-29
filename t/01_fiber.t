@@ -56,6 +56,16 @@ subtest 'resume can pass value' => sub {
     is $adder->resume(3), 6;
 };
 
+subtest 'first resume has its arguments passed into its code block' => sub {
+    my $fiber = Fiber->new(sub {
+        my ($first) = @_;
+        my $second = Fiber->yield($first + 2);
+    });
+    is $fiber->resume(10), 12;
+    is $fiber->resume(14), 14;
+    like exception { $fiber->resume(18) }, qr/dead fiber called/;
+};
+
 subtest 'nested fiber runs correctly' => sub {
     my $outer = Fiber->new(sub {
         my $inner = Fiber->new(sub {
