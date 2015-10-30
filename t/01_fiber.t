@@ -78,6 +78,21 @@ subtest 'nested fiber runs correctly' => sub {
     is $outer->resume, 'outer';
 };
 
+subtest 'transfer works correctly' => sub {
+    my $fiber1 = Fiber->new(sub {
+        Fiber->yield('fiber1');
+    });
+    my $fiber2 = Fiber->new(sub {
+        $fiber1->transfer;
+        2;
+    });
+    my $fiber3 = Fiber->new(sub {
+        3;
+    });
+    is $fiber2->resume, 'fiber1';
+    is $fiber3->resume, 3;
+};
+
 subtest 'dead fiber resuming raises error' => sub {
     my $fiber = Fiber->new(sub { });
     lives_ok { $fiber->resume };

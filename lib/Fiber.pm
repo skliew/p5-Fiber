@@ -43,8 +43,9 @@ sub yield {
     return wantarray ? @params : $params[0];
 }
 
-sub resume {
+sub _resume {
     my $self = shift;
+    my $transfer = shift;
     croak "dead fiber called" unless $self->{alive};
 
     if ($self->{resumed}) {
@@ -56,11 +57,21 @@ sub resume {
         $self->{resumed} = 1;
     }
 
-    push @yieldstack, $Coro::current;
+    push @yieldstack, $Coro::current unless $transfer;
     $self->{coro}->schedule_to;
     $self->{coro}->cancel unless $self->{alive};
 
     return wantarray ? @returns : $returns[0];
+}
+
+sub resume {
+    my $self = shift;
+    $self->_resume(0, @_);
+}
+
+sub transfer {
+    my $self = shift;
+    $self->_resume(1, @_);
 }
 
 1;
@@ -113,8 +124,19 @@ Control back to the context that resume the fiber, and passing @valus to it.
 
   my @ret = $fiber->resume(@vals);
 
-Resumes the fiber from the point at which the last Fiber->yield was called, 
+Resumes the fiber from the point at which the last Fiber->yield was called,
 or starts running it if it is the first call to resume.
+
+=item transfer
+
+  my @ret = $fiber->transfer(@vals);
+
+Transfers control to the fiber from the point at which the last Fiber->yield was called,
+or starts running it if it is the first call to resume. The calling fiber will be
+suspended similar to a cal to Fiber->yield. Arguments passed to transfer are treated
+like those passed to resume.
+
+=back
 
 =back
 
